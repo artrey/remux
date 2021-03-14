@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/artrey/remux/pkg/middleware/logger"
 	"github.com/artrey/remux/pkg/remux"
 	"log"
 	"net"
@@ -34,6 +35,9 @@ func main() {
 
 func execute(address string) error {
 	mux := remux.New()
+	_ = mux.RegisterPlain(http.MethodGet, "/test", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(r.URL.Path))
+	}), logger.Logger)
 	server := http.Server{
 		Addr:    address,
 		Handler: mux,

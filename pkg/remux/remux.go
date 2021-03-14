@@ -16,6 +16,8 @@ type ReMux struct {
 	notFoundHandler http.Handler
 }
 
+type Middleware func(handler http.Handler) http.Handler
+
 func New() *ReMux {
 	return &ReMux{
 		notFoundHandler: http.HandlerFunc(defaultNotFoundHandler),
@@ -103,7 +105,7 @@ func (r *ReMux) NotFound(handler http.Handler) error {
 	return nil
 }
 
-func (r *ReMux) RegisterPlain(method, path string, handler http.Handler) error {
+func (r *ReMux) RegisterPlain(method, path string, handler http.Handler, middlewares ...Middleware) error {
 	if !isValidMethod(method) {
 		return ErrInvalidMethod
 	}
@@ -128,11 +130,11 @@ func (r *ReMux) RegisterPlain(method, path string, handler http.Handler) error {
 		r.plain[method] = make(map[string]http.Handler)
 	}
 
-	r.plain[method][path] = handler
+	r.plain[method][path] = wrapHandler(handler, middlewares...)
 	return nil
 }
 
-func (r *ReMux) RegisterRegex(method string, path *regexp.Regexp, handler http.Handler) error {
+func (r *ReMux) RegisterRegex(method string, path *regexp.Regexp, handler http.Handler, middlewares ...Middleware) error {
 	if !isValidMethod(method) {
 		return ErrInvalidMethod
 	}
@@ -160,7 +162,7 @@ func (r *ReMux) RegisterRegex(method string, path *regexp.Regexp, handler http.H
 		r.regex[method] = make(map[*regexp.Regexp]http.Handler)
 	}
 
-	r.regex[method][path] = handler
+	r.regex[method][path] = wrapHandler(handler, middlewares...)
 	return nil
 }
 
@@ -178,6 +180,13 @@ var validMethods = []string{
 	http.MethodPut,
 	http.MethodPatch,
 	http.MethodDelete,
+}
+
+func wrapHandler(handler http.Handler, middlewares ...Middleware) http.Handler {
+	for _, m := range middlewares {
+		handler = m(handler)
+	}
+	return handler
 }
 
 func isValidMethod(method string) bool {
